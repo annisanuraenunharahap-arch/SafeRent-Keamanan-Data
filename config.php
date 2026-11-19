@@ -11,20 +11,45 @@ function db(){
 function e($s){ return htmlspecialchars((string)$s, ENT_QUOTES); }
 function rp($n){ return 'Rp '.number_format($n,0,',','.'); }
 
-// ===== Kriptografi hybrid: AES-256-GCM (data) + RSA-2048 OAEP (pembungkus kunci) =====
-function hybrid_encrypt(array $data): array {
-  $k  = random_bytes(32);   // kunci AES-256 acak per data
-  $iv = random_bytes(12);
-  $ct = openssl_encrypt(json_encode($data), 'aes-256-gcm', $k, OPENSSL_RAW_DATA, $iv, $tag);
-  openssl_public_encrypt($k, $ek, file_get_contents(PUB_KEY), OPENSSL_PKCS1_OAEP_PADDING);
-  return [base64_encode($iv.$tag.$ct), base64_encode($ek)];
+// Enkripsi string tunggal (RSA-OAEP)
+function rsa_enc_str(string $text): string {
+  $pub = file_get_contents(PUB_KEY);
+  openssl_public_encrypt(substr($text, 0, 190), $enc, $pub, OPENSSL_PKCS1_OAEP_PADDING);
+  return base64_encode($enc);
 }
 
-function hybrid_decrypt($enc, $ek, $privPem){
-  if(!openssl_private_decrypt(base64_decode($ek), $k, $privPem, OPENSSL_PKCS1_OAEP_PADDING)) return null;
-  $r = base64_decode($enc);
-  $j = openssl_decrypt(substr($r,28), 'aes-256-gcm', $k, OPENSSL_RAW_DATA, substr($r,0,12), substr($r,12,16));
-  return $j === false ? null : json_decode($j, true);
+// Dekripsi string tunggal (RSA-OAEP)
+function rsa_dec_str(string $enc, string $privPem): ?string {
+  if (!@openssl_private_decrypt(base64_decode($enc), $dec, $privPem, OPENSSL_PKCS1_OAEP_PADDING)) return null;
+  return $dec;
+}
+
+// Enkripsi tampilan dashboard terkunci (RSA murni)
+function dash_encrypt(string $text): string {
+  return rsa_enc_str($text);
+}
+
+// Enkripsi data pemesanan array JSON (RSA murni dengan pemecahan blok 190 byte)
+function rsa_encrypt(array $data): string {
+  $pub = file_get_contents(PUB_KEY);
+  $chunks = str_split(json_encode($data), 190);
+  $out = [];
+  foreach ($chunks as $c) {
+    openssl_public_encrypt($c, $enc, $pub, OPENSSL_PKCS1_OAEP_PADDING);
+    $out[] = base64_encode($enc);
+  }
+  return implode('.', $out);
+}
+
+// Dekripsi data pemesanan array JSON (RSA murni)
+function rsa_decrypt(string $enc, string $privPem): ?array {
+  $parts = explode('.', $enc);
+  $plain = '';
+  foreach ($parts as $p) {
+    if (!@openssl_private_decrypt(base64_decode($p), $dec, $privPem, OPENSSL_PKCS1_OAEP_PADDING)) return null;
+    $plain .= $dec;
+  }
+  return json_decode($plain, true);
 }
 
 $root = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT']));

@@ -1,5 +1,4 @@
--- Database SafeRent
--- Sistem Informasi Rental Kendaraan dengan Enkripsi AES-256 + RSA
+-- Database SafeRent 
 
 CREATE DATABASE IF NOT EXISTS saferent;
 USE saferent;
@@ -13,18 +12,15 @@ CREATE TABLE IF NOT EXISTS vehicles (
   tersedia TINYINT DEFAULT 1
 );
 
--- Tabel pemesanan
+-- Tabel pemesanan (dienkripsi RSA)
 CREATE TABLE IF NOT EXISTS rentals (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  kode VARCHAR(64) NULL UNIQUE COMMENT 'hash SHA-256 dari kode pesanan (untuk cek status)',
-  vehicle_id INT,
-  tgl_mulai DATE,
-  tgl_selesai DATE,
-  total INT,
-  data_enc TEXT NOT NULL COMMENT 'AES-256-GCM: kode, nama, NIK, HP, no SIM',
-  key_enc TEXT NOT NULL COMMENT 'kunci AES dibungkus RSA public key',
-  status ENUM('Menunggu','Disetujui','Selesai','Ditolak') DEFAULT 'Menunggu',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  vehicle_id TEXT NOT NULL COMMENT 'RSA-OAEP: ID kendaraan',
+  tgl_mulai TEXT NOT NULL COMMENT 'RSA-OAEP: tanggal mulai',
+  tgl_selesai TEXT NOT NULL COMMENT 'RSA-OAEP: tanggal selesai',
+  total TEXT NOT NULL COMMENT 'RSA-OAEP: total biaya',
+  data_enc TEXT NOT NULL COMMENT 'RSA-OAEP: nama, NIK, HP, no SIM',
+  created_at TEXT NOT NULL COMMENT 'RSA-OAEP: waktu pemesanan'
 );
 
 -- Data awal kendaraan
